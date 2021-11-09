@@ -1,0 +1,81 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()  # loads the configs from .env
+
+from django.shortcuts import render
+from django import forms
+from django.http import HttpResponseRedirect
+from newsapi import NewsApiClient
+import pycountry
+import pytz
+
+import requests
+
+from .forms import CountryForm
+# you have to get your api key from newapi.com and then paste it below
+newsapi = NewsApiClient(api_key=str(os.getenv('NEWS_API_KEY')))
+  
+  
+ 
+ 
+def index(request):
+    submitted = False
+    if request.method == 'POST':
+        form = CountryForm(request.POST)
+        if form.is_valid():
+            cd = form.cleaned_data
+            input_country = cd['country']
+            # TODO: check the country name either with "pycountry" or "pytz"
+            
+            input_countries = [f'{input_country.strip()}']
+            countries = {}
+            # iterate over all the countries in
+            # the world using pycountry module
+            for country in pycountry.countries:
+            
+                # and store the unique code of each country
+                # in the dictionary along with it's full name
+                countries[country.name] = country.alpha_2
+            
+            # now we will check that the entered country name is
+            # valid or invalid using the unique code
+            codes = [countries.get(country.title(), 'Unknown code') for country in input_countries]
+            
+            # now we have to display all the categories from which user will
+            # decide and enter the name of that category
+            
+            option = "Business"
+            # now we will fetch the new according to the choice of the user
+            top_headlines = newsapi.get_top_headlines( 
+            # getting top headlines from all the news channels
+            category=f'{option.lower()}', language='en', country=f'{codes[0].lower()}'
+            )
+            
+            # fetch the top news inder that category
+            Headlines = top_headlines['articles']
+            
+            
+            # for articles in Headlines:
+            #     b = articles['title'][::-1].index("-")
+            #     if "news" in (articles['title'][-b+1:]).lower():
+            #         print(
+            #             f"{articles['title'][-b+1:]}: {articles['title'][:-b-2]}.")
+            #     else:
+            #         print(
+            #             f"{articles['title'][-b+1:]} News: {articles['title'][:-b-2]}.")
+            
+            
+            
+            # return HttpResponseRedirect('/reader?submitted=True')
+            
+            return render(request, 
+                'reader/index.html', 
+                {'form': form, 'submitted': submitted, "articles": Headlines})
+    else:
+        form = CountryForm()
+        if 'submitted' in request.GET:
+            submitted = True
+
+    return render(request, 
+        'reader/index.html', 
+        {'form': form, 'submitted': submitted})
